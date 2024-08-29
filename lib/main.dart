@@ -15,6 +15,7 @@ class _AnimatedContainerAppState extends State<AnimatedContainerApp>
     with SingleTickerProviderStateMixin {
   late AnimationController controller;
   late Animation<double> widthAnimation;
+  bool showText = false;
 
   @override
   void initState() {
@@ -22,11 +23,18 @@ class _AnimatedContainerAppState extends State<AnimatedContainerApp>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 2),
     );
     widthAnimation = Tween<double>(begin: 0, end: 300).animate(controller)
       ..addListener(() {
         setState(() {});
+      })
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          setState(() {
+            showText = true;
+          });
+        }
       });
   }
 
@@ -81,6 +89,9 @@ class _AnimatedContainerAppState extends State<AnimatedContainerApp>
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             controller.forward(from: 0);
+            setState(() {
+              showText = false; // Reset the text visibility
+            });
           },
           child: const Icon(Icons.play_arrow),
         ),
@@ -98,34 +109,46 @@ class ToastMsg {
     BotToast.showCustomNotification(
       duration: Duration(seconds: duration),
       toastBuilder: (CancelFunc? cancelFunc) {
-        // Show the icon on the left side
         return FutureBuilder(
-          future: Future.delayed(const Duration(seconds: 1)),
+          future: Future.delayed(const Duration(seconds: 1)), // Delay the container
           builder: (context, snapshot) {
-            controller.forward(from: 0);
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check, size: 50, color: Colors.green),
-                const SizedBox(width: 10),
-                AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, child) {
-                    double width = Tween<double>(begin: 0, end: 300)
-                        .animate(controller)
-                        .value;
-                    return Container(
-                      color: Colors.white,
-                      height: 100, // Fixed height
-                      width: width, // Animated width
-                      child: const Center(
-                        child: Text("Response Data of API"),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            );
+            controller.reset(); // Reset the animation controller
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Row(
+                mainAxisSize: MainAxisSize.min, // Shrinks to fit content
+                children: const [
+                  Icon(Icons.check, size: 50, color: Colors.green),
+                ],
+              );
+            } else {
+              controller.forward(); // Start the container animation
+
+              return Row(
+                mainAxisSize: MainAxisSize.min, // Shrinks to fit content
+                children: [
+                  const Icon(Icons.check, size: 50, color: Colors.green),
+                  const SizedBox(width: 10), // Spacing between icon and container
+                  AnimatedBuilder(
+                    animation: controller,
+                    builder: (context, child) {
+                      double width = Tween<double>(begin: 0, end: 300).animate(controller).value;
+
+                      return Container(
+                        color: Colors.white,
+                        height: 100, // Fixed height
+                        width: width, // Animated width
+                        child: Center(
+                          child: controller.isCompleted
+                              ? const Text("Response Data of API")
+                              : null, // Show text only after animation is complete
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            }
           },
         );
       },
