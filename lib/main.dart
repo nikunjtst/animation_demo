@@ -1,8 +1,6 @@
-import 'package:animation_demo/animated_container.dart';
 import 'package:animation_demo/tween_example.dart';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 
 void main() => runApp(const AnimatedContainerApp());
 
@@ -13,62 +11,76 @@ class AnimatedContainerApp extends StatefulWidget {
   State<AnimatedContainerApp> createState() => _AnimatedContainerAppState();
 }
 
-class _AnimatedContainerAppState extends State<AnimatedContainerApp> {
+class _AnimatedContainerAppState extends State<AnimatedContainerApp>
+    with SingleTickerProviderStateMixin {
+  late AnimationController controller;
+  late Animation<double> widthAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    widthAnimation = Tween<double>(begin: 0, end: 300).animate(controller)
+      ..addListener(() {
+        setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorObservers: [],
+      builder: BotToastInit(),
+      navigatorObservers: [BotToastNavigatorObserver()],
       home: Scaffold(
         appBar: AppBar(
           title: const Text('AnimatedContainer Demo'),
         ),
         body: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ValueListenableBuilder(
-              //   valueListenable: ToastMsg.widthNotifier,
-              //   builder: (context, width, child) => ValueListenableBuilder(
-              //     valueListenable: ToastMsg.heightNotifier,
-              //     builder: (context, height, child) => AnimatedContainer(
-              //       width: ToastMsg.widthNotifier.value,
-              //       height: ToastMsg.heightNotifier.value,
-              //       decoration: BoxDecoration(
-              //         color: ToastMsg.color,
-              //         borderRadius: ToastMsg.borderRadius,
-              //       ),
-              //       duration: const Duration(seconds: 1),
-              //       curve: Curves.fastOutSlowIn,
-              //       child: ValueListenableBuilder(
-              //         valueListenable: ToastMsg.textStyleNotifier,
-              //         builder: (context, textStyle, child) => const Center(
-              //           child: Text("Response Data of API"),
-              //         ),
-              //       ),
-              //     ),
-              //   ),
-              // ),
               ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TweenExample(),
-                        ));
-                  },
-                  child: const Text("Custom Msg"))
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TweenExample(),
+                    ),
+                  );
+                },
+                child: const Text("Custom Msg"),
+              ),
+              Container(
+                color: Colors.white,
+                height: 100, // Fixed height
+                width: widthAnimation.value, // Animated width
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  ToastMsg.showSuccess(
+                    message: "Response Data of API",
+                    controller: controller, // Pass the controller
+                  );
+                },
+                child: const Text("Show Animated Toast"),
+              ),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            ToastMsg.widthNotifier.value = 300;
-            ToastMsg.heightNotifier.value = 80;
-            ToastMsg.textStyleNotifier.value =
-                const TextStyle(fontSize: 24, color: Colors.black);
-            ToastMsg.borderRadius = BorderRadius.circular(20);
-
-            // Show the animated toast message
-            // ToastMsg.showSuccess(message: 'Animation Success');
+            controller.forward(from: 0);
           },
           child: const Icon(Icons.play_arrow),
         ),
@@ -78,44 +90,45 @@ class _AnimatedContainerAppState extends State<AnimatedContainerApp> {
 }
 
 class ToastMsg {
-  static final ValueNotifier<double> widthNotifier = ValueNotifier(50);
-  static final ValueNotifier<double> heightNotifier = ValueNotifier(50);
-  static final ValueNotifier<TextStyle> textStyleNotifier =
-      ValueNotifier(const TextStyle(fontSize: 8, color: Colors.white));
-  static Color color = Colors.green;
-  static BorderRadiusGeometry borderRadius = BorderRadius.circular(8);
-
-  static void showSuccess({required String message, int duration = 3}) {
+  static void showSuccess({
+    required String message,
+    required AnimationController controller, // Use the existing controller
+    int duration = 3,
+  }) {
     BotToast.showCustomNotification(
       duration: Duration(seconds: duration),
-      toastBuilder: (CancelFunc? cancelFunc) => ValueListenableBuilder(
-        valueListenable: widthNotifier,
-        builder: (context, width, child) => ValueListenableBuilder(
-          valueListenable: heightNotifier,
-          builder: (context, height, child) => AnimatedContainer(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: borderRadius,
-            ),
-            duration: const Duration(seconds: 1),
-            curve: Curves.fastOutSlowIn,
-            child: ValueListenableBuilder(
-              valueListenable: textStyleNotifier,
-              builder: (context, textStyle, child) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text("Response Data of API", style: textStyle),
-                    Text("Header Data of API", style: textStyle),
-                  ],
+      toastBuilder: (CancelFunc? cancelFunc) {
+        // Show the icon on the left side
+        return FutureBuilder(
+          future: Future.delayed(const Duration(seconds: 1)),
+          builder: (context, snapshot) {
+            controller.forward(from: 0);
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check, size: 50, color: Colors.green),
+                const SizedBox(width: 10),
+                AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, child) {
+                    double width = Tween<double>(begin: 0, end: 300)
+                        .animate(controller)
+                        .value;
+                    return Container(
+                      color: Colors.white,
+                      height: 100, // Fixed height
+                      width: width, // Animated width
+                      child: const Center(
+                        child: Text("Response Data of API"),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ),
-          ),
-        ),
-      ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
